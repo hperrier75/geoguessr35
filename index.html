@@ -813,7 +813,9 @@
         function goToWelcome() { screenTransition('profileScreen', 'welcomeScreen'); }
 
         function startGame() {
-            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            try {
+            alert('DEBUG: startGame appelee');
+            var apiKey = document.getElementById('apiKeyInput').value.trim();
             if (!apiKey) { alert('Veuillez entrer une API Key valide'); return; }
             gameState.apiKey = apiKey;
             localStorage.setItem('geoguessr35ApiKey', apiKey);

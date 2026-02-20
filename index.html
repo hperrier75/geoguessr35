@@ -817,15 +817,25 @@
             if (!apiKey) { alert('Veuillez entrer une API Key valide'); return; }
             gameState.apiKey = apiKey;
             localStorage.setItem('geoguessr35ApiKey', apiKey);
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly`;
-            script.async = true;
-            script.onload = () => {
+            if (typeof google !== 'undefined' && google.maps) {
+                buildProfileCards();
+                screenTransition('welcomeScreen', 'profileScreen');
+                return;
+            }
+            window.gmapsCallback = function() {
                 buildProfileCards();
                 screenTransition('welcomeScreen', 'profileScreen');
             };
-            script.onerror = () => { alert('Erreur: Impossible de charger Google Maps API.'); };
+            const script = document.createElement('script');
+            script.src = 'https://maps.googleapis.com/maps/api/js?key=' + apiKey + '&v=weekly&callback=gmapsCallback';
+            script.async = true;
+            script.onerror = function() { alert('Erreur: Impossible de charger Google Maps. Verifiez votre API Key et votre connexion.'); };
             document.head.appendChild(script);
+            setTimeout(function() {
+                if (typeof google === 'undefined' || !google.maps) {
+                    alert('Google Maps ne repond pas. Verifiez que Maps JavaScript API est activee dans votre console Google Cloud.');
+                }
+            }, 10000);
         }
 
         // ===================== PROFILE CARDS =====================

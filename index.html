@@ -961,9 +961,21 @@
         function getRandomPOI(usedPOIs) {
             const available = POINTS_OF_INTEREST.map((poi, i) => ({ poi, i })).filter(({ i }) => !usedPOIs.has(i));
             if (available.length === 0) return null;
-            const pick = available[Math.floor(Math.random() * available.length)];
-            return { poi: pick.poi, index: pick.i };
+            // Weighted random selection
+            const totalWeight = available.reduce((sum, { poi }) => sum + (poi.weight || 1), 0);
+            let r = Math.random() * totalWeight;
+            for (const item of available) {
+                r -= (item.poi.weight || 1);
+                if (r <= 0) return { poi: item.poi, index: item.i };
+            }
+            return { poi: available[0].poi, index: available[0].i };
         }
+
+        // Remember used pano IDs across games
+        let recentPanoIds = new Set();
+
+        // Remember used pano IDs across games
+        let recentPanoIds = new Set();
 
         function loadLocations() {
             gameState.locations = [];
@@ -971,6 +983,8 @@
             let found = 0, attempts = 0;
             const maxTotal = 300;
             const usedPOIs = new Set();
+            if (recentPanoIds.size > 40) recentPanoIds.clear();
+            if (recentPanoIds.size > 40) recentPanoIds.clear();
 
             const attemptLoad = () => {
                 if (found >= 10) {
@@ -989,8 +1003,11 @@
                 if (result) {
                     const poi = result.poi;
                     locationName = poi.name;
-                    const jitter = Math.min(0.001, poi.radius * 0.000005);
-                    point = { lat: poi.lat + (Math.random() - 0.5) * jitter, lng: poi.lng + (Math.random() - 0.5) * jitter };
+                    const angle = Math.random() * 2 * Math.PI;
+                    const dist = Math.random() * poi.radius;
+                    const dLat = (dist * Math.cos(angle)) / 111320;
+                    const dLng = (dist * Math.sin(angle)) / (111320 * Math.cos(poi.lat * Math.PI / 180));
+                    point = { lat: poi.lat + dLat, lng: poi.lng + dLng };
                     searchRadius = poi.radius || 500;
                     usedPOIs.add(result.index);
                 } else {
@@ -1002,8 +1019,12 @@
                 document.getElementById('loadingAttempts').textContent = `${attempts} points testés...`;
                 streetViewService.getPanorama({ location: point, radius: searchRadius, source: google.maps.StreetViewSource.OUTDOOR }, (data, status) => {
                     if (status === google.maps.StreetViewStatus.OK && data) {
-                        gameState.locations.push({ lat: data.location.latLng.lat(), lng: data.location.latLng.lng(), panoId: data.location.pano, heading: Math.random() * 360, name: locationName });
-                        found++;
+                        const panoId = data.location.pano;
+                        if (!recentPanoIds.has(panoId)) {
+                            gameState.locations.push({ lat: data.location.latLng.lat(), lng: data.location.latLng.lng(), panoId, heading: Math.random() * 360, name: locationName });
+                            recentPanoIds.add(panoId);
+                            found++;
+                        }
                     }
                     setTimeout(attemptLoad, 100);
                 });

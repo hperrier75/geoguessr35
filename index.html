@@ -817,23 +817,27 @@
             if (!apiKey) { alert('Veuillez entrer une API Key valide'); return; }
             gameState.apiKey = apiKey;
             localStorage.setItem('geoguessr35ApiKey', apiKey);
+
             if (typeof google !== 'undefined' && google.maps) {
                 buildProfileCards();
                 screenTransition('welcomeScreen', 'profileScreen');
                 return;
             }
+
             window.gmapsCallback = function() {
                 buildProfileCards();
                 screenTransition('welcomeScreen', 'profileScreen');
             };
-            const script = document.createElement('script');
+
+            var script = document.createElement('script');
             script.src = 'https://maps.googleapis.com/maps/api/js?key=' + apiKey + '&v=weekly&callback=gmapsCallback';
             script.async = true;
-            script.onerror = function() { alert('Erreur: Impossible de charger Google Maps. Verifiez votre API Key et votre connexion.'); };
+            script.onerror = function() { alert('Erreur: Impossible de charger Google Maps API. Verifiez votre cle API.'); };
             document.head.appendChild(script);
+
             setTimeout(function() {
                 if (typeof google === 'undefined' || !google.maps) {
-                    alert('Google Maps ne repond pas. Verifiez que Maps JavaScript API est activee dans votre console Google Cloud.');
+                    alert('Google Maps ne repond pas. Verifiez que Maps JavaScript API est active dans Google Cloud Console.');
                 }
             }, 10000);
         }
@@ -981,10 +985,7 @@
             return { poi: available[0].poi, index: available[0].i };
         }
 
-        // Remember used pano IDs across games
-        let recentPanoIds = new Set();
-
-        // Remember used pano IDs across games
+        // Remember used pano IDs across games to avoid repeats
         let recentPanoIds = new Set();
 
         function loadLocations() {
@@ -993,7 +994,7 @@
             let found = 0, attempts = 0;
             const maxTotal = 300;
             const usedPOIs = new Set();
-            if (recentPanoIds.size > 40) recentPanoIds.clear();
+            // Keep max 40 recent panos, clear oldest if too many
             if (recentPanoIds.size > 40) recentPanoIds.clear();
 
             const attemptLoad = () => {
@@ -1013,6 +1014,7 @@
                 if (result) {
                     const poi = result.poi;
                     locationName = poi.name;
+                    // Real jitter: random point within the POI radius
                     const angle = Math.random() * 2 * Math.PI;
                     const dist = Math.random() * poi.radius;
                     const dLat = (dist * Math.cos(angle)) / 111320;
@@ -1030,6 +1032,7 @@
                 streetViewService.getPanorama({ location: point, radius: searchRadius, source: google.maps.StreetViewSource.OUTDOOR }, (data, status) => {
                     if (status === google.maps.StreetViewStatus.OK && data) {
                         const panoId = data.location.pano;
+                        // Skip if we've already seen this exact panorama (this game or recent games)
                         if (!recentPanoIds.has(panoId)) {
                             gameState.locations.push({ lat: data.location.latLng.lat(), lng: data.location.latLng.lng(), panoId, heading: Math.random() * 360, name: locationName });
                             recentPanoIds.add(panoId);
